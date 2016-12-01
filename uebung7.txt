@@ -1,0 +1,192 @@
+Kapitel 7
+
+Fügen Sie zu dem add-year Programm aus Kapitel 7 einen Fehlerabbruch mit error-exit.s nach jedem
+ System-Call hinzu.
+
+
+.include "linux.s"
+.include "record-def.s"
+
+.section .data
+
+input_file_name:
+.ascii "test.dat\0"
+
+output_file_name:
+.ascii "testout.dat\0"
+.section .bss
+.lcomm record_buffer, RECORD_SIZE
+# Stack offsets of local variables
+.equ ST_INPUT_DESCRIPTOR, -4
+.equ ST_OUTPUT_DESCRIPTOR, -8
+
+.section .text
+.globl _start
+_start:
+# Copy stack pointer and make room for local variables
+movl %esp, %ebp
+subl $8, %esp
+# Open file for reading
+movl $SYS_OPEN, %eax
+movl $input_file_name, %ebx
+movl $0, %ecx
+movl $0666, %edx
+int $LINUX_SYSCALL
+movl %eax, ST_INPUT_DESCRIPTOR(%ebp)
+
+cmpl $0, %eax
+jl continue_processing_open
+
+# Send the error
+.section .data
+no_open_file_code:
+.ascii "0001: \0"
+no_open_file_msg:
+.ascii "Can't Open Input File\0"
+
+.section .text
+pushl $no_open_file_msg
+pushl $no_open_file_code
+call error_exit
+
+continue_processing_open:
+
+# Open file for writing
+movl $SYS_OPEN, %eax
+movl $output_file_name, %ebx
+movl $0101, %ecx
+
+movl $0666, %edx
+int $LINUX_SYSCALL
+movl %eax, ST_OUTPUT_DESCRIPTOR(%ebp)
+
+cmpl $0, %eax
+jl continue_processing_write
+
+# Send the error
+.section .data
+no_write_file_code:
+.ascii "0002: \0"
+no_write_file_msg:
+.ascii "Can't Open Output File\0"
+
+.section .text
+pushl $no_write_file_msg
+pushl $no_write_file_code
+call error_exit
+
+continue_processing_write:
+
+loop_begin:
+pushl ST_INPUT_DESCRIPTOR(%ebp)
+pushl $record_buffer
+call read_record
+addl $8, %esp
+# Returns the number of bytes read.
+# If it isn't the same number we
+# requested, then it's either an
+# end-of-file, or an error
+
+# quitting
+cmpl $RECORD_SIZE, %eax
+jne loop_end
+
+# Increment the age
+incl record_buffer + RECORD_AGE
+
+# Write the record out
+pushl ST_OUTPUT_DESCRIPTOR(%ebp)
+pushl $record_buffer
+call write_record
+addl $8, %esp
+jmp loop_begin
+loop_end:
+movl $SYS_EXIT, %eax
+movl $0, %ebx
+int $LINUX_SYSCALL
+
+
+Kapitel 8
+
+Beantworten Sie im Bartlett am Ende von Kapitel 8
+
+KNOW THE CONCEPTS
+
+What are the advantages and disadvantages of shared libraries?
+* pro: easier to maintain, bugfixing in one place, less coding
+* con: increased program size, changes in the libraries could have huge impact on programs
+
+Given a library named ’foo’, what would the library’s filename be?
+* foo.so
+
+What does the ldd command do?
+* Print's shared libary dependentcies.
+
+Let’s say we had the files foo.o and bar.o , and you wanted to link them together, and
+dynamically link them to the library ’kramer’. What would the linking command be to
+generate the final executable?
+* ld -melf_i386 -dynamic-linker /lib/ld-linux.so.2 -o foobar foo.o bar.o -lkramer
+
+What is typedef for?
+* The keyword typedef is for creating an alias for a data type.
+
+What are structs for?
+* Structs in C are used to define new datatypes or object - like structures
+
+What is the difference between a data element of type int and int \*? How would
+you access them differently in your program?
+* int is a normal integer value(direkt addressing mode), int* is a pointer to an integer avlue(indirect
+addressing mode)
+
+If you had a object file called foo.o , what would be the command to create a shared library
+called ’bar’?
+* ld -shared -o bar.so foo.o
+
+What is the purpose of LD_LIBRARY_PATH?
+* It's for the linker to add additional search paths for libraries 
+
+
+
+
+
+
+GOING FURTHER
+
+
+Make a list of all the environment variables used by the GNU/Linux dynamic linker.
+* LD_LIBRARY_PATH
+* /lib
+* /usr/lib
+* /etc/ld.so.conf
+
+Research the use of LD_PRELOAD . What is it used for? Try building a shared library that
+contained the exit function, and have it write a message to STDERR before exitting. Use
+LD_PRELOAD and run various programs with it. What are the results?
+*LD_PRELOAD the library will be loading before any other library (including the C runtime, libc.so).
+
+
+
+
+
+Was bedeuten die folgenden Zeilen in der Sprache C?
+
+
+a) typedef int int32_t;
+
+
+b) typedef short int16_t;
+
+
+b) int f1(char c, int i, float f);
+
+
+c) int32_t f2(int32_t *ip);
+
+
+d) int *f3(char *cp);
+
+
+e) int f4(double d);
+
+
+f) int f5(int16_t si);
